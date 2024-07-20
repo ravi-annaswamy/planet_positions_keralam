@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ഗ്രഹ നില (കേരളം) </title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+    body { font-family: Arial, sans-serif; padding: 18px; }
+    table { width: 100%; border-collapse: collapse; overflow-x: auto; display: block; }
+    th, td { border: 1px solid #dddddd; text-align: left; padding: 8px; }
+    th { background-color: #f2f2f2; }
+    label, select, input[type="checkbox"], button { 
+        display: block; 
+        width: 100%; 
+        margin-top: 5px; 
+        margin-bottom: 5px; 
+        padding: 10px; 
+        font-size: 16px; /* Larger touch targets for mobile devices */
+    }
+    .form-control { 
+        margin-bottom: 10px; /* Adds space between form controls */
+    }
+</style>
+
+<script src="planterms2.js"></script>
+<script src="planets.js"></script>
+<script src="findchart.js"></script>
+
+<script>
+    var westernZodiac = ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo', 'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'];
+    var indianZodiac = ['Mesha', 'Vrishabha', 'Mithuna', 'Karka', 'Simha', 'Kanya', 'Tula', 'Vrischika', 'Dhanu', 'Makara', 'Kumbha', 'Meena'];
+    var indianZodiacMalayalam = ['മേടം', 'ഇടവം', 'മിഥുനം', 'കർക്കിടകം', 'ചിങ്ങം', 'കന്നി', 'തുലാം', 'വൃശ്ചികം', 'ധനു', 'മകരം', 'കുംഭം', 'മീനം'];
+	
+    var nakshatraNames = [
+        "Ashwini", "Bharani", "Krittika", "Rohini", "Mrigashirsha", "Ardra", "Punarvasu", "Pushya", "Ashlesha",
+        "Magha", "Purva Phalguni", "Uttara Phalguni", "Hasta", "Chitra", "Swati", "Vishakha", "Anuradha", 
+        "Jyeshta", "Mula", "Purva Ashadha", "Uttara Ashadha", "Shravana", "Dhanishta", "Shatabhisha", 
+        "Purva Bhadrapada", "Uttara Bhadrapada", "Revati"
+    ];
+	
+	var nakshatraNamesMalayalam = [
+		"അശ്വതി", "ഭരണി", "കാർത്തിക", "രോഹിണി", "മകയിരം", "ആതിര", "പുണർതം", "പൂയം", "ആയില്യം",
+		"മകം", "പൂരം", "ഉത്രം", "അത്തം", "ചിത്തിര", "ചോതി", "വിശാഖം", "അനിഴം",
+		"കേട്ട", "മൂലം", "പൂരാടം", "ഉത്രാടം", "ഓണം", "അവിട്ടം", "ചതയം",
+		"പൂരുരുട്ടാതി", "ഉത്രട്ടാതി", "രേവതി"
+	];
+
+
+    function calculateNakshatraPada(degree) {
+        const degreesPerNakshatra = 13.33;
+        const degreesPerPada = 3.333;
+
+        const nakshatraIndex = Math.floor(degree / degreesPerNakshatra);
+        const pada = Math.floor((degree / degreesPerPada)) % 4 + 1;
+        const nakshatraName = nakshatraNamesMalayalam[nakshatraIndex % 27]; // Using modulo 27 to cycle through Nakshatra list
+        return { nakshatra: nakshatraName, pada: pada };
+    }
+
+	function setDateToday() {
+	    var today = new Date();
+	    var year = today.getFullYear();
+	    var month = today.getMonth() + 1; // JavaScript months are 0-indexed
+	    var day = today.getDate();
+	    var hour = today.getHours(); // Get the current hour
+	    var minute = today.getMinutes(); // Get the current minute
+	    
+	    document.getElementById('year').value = year;
+	    document.getElementById('month').value = month;
+	    document.getElementById('day').value = day;
+	    document.getElementById('hour').value = hour;
+	    document.getElementById('minute').value = minute;
+	}
+
+	// Define house positions in a South Indian chart layout.
+	// This maps houses to their positions on a 4x4 grid's perimeter, starting from Aries.
+	var housePositions = [
+		{row: 0, col: 1},  // Aries
+		{row: 0, col: 2},  // Taurus
+		{row: 0, col: 3},  // Gemini
+		{row: 1, col: 3},  // Cancer
+		{row: 2, col: 3},  // Leo
+		{row: 3, col: 3},  // Virgo
+		{row: 3, col: 2},  // Libra
+		{row: 3, col: 1},  // Scorpio
+		{row: 3, col: 0},  // Sagittarius
+		{row: 2, col: 0},  // Capricorn
+		{row: 1, col: 0},  // Aquarius
+		{row: 0, col: 0}   // Pisces
+	];
+
+	function drawSouthChart(x, y, w, h, planetDetails) {
+		var mx = w / 4,  // width of each house
+			my = h / 4,  // height of each house
+			bw = w / 8;  // offset within each house for the planet text
+
+		var s = "<g>\n";
+		var planetCounts = new Array(12).fill(0);  // This will track the number of planets in each house
+
+		// Draw chart houses
+		housePositions.forEach((pos, index) => {
+			var xd = x + pos.col * mx,
+				yd = y + pos.row * my;
+			s += '<rect x="' + xd + '" y="' + yd + '" width="' + mx + '" height="' + my + '" style="fill:none;stroke:black;stroke-width:2"/>\n';
+		});
+
+		// Place planets in houses based on their longitude
+		planetDetails.forEach((planet) => {
+			var houseIndex = Math.floor((planet.longitude % 360) / 30); // Calculate house index from 0 to 11
+			var position = housePositions[houseIndex];
+			var count = planetCounts[houseIndex];
+			var cellX = x + position.col * mx - 10;
+			var cellY = y + position.row * my + (count * 15);  // Adjust Y based on count of planets in the same house
+			var planetName = planet.name
+
+			s += '<text x="' + (cellX + bw / 2) + '" y="' + (cellY + my / 2) + '" fill="black" font-size="14" font-family="monospace">' + planetName + '</text>\n';
+
+			planetCounts[houseIndex]++;  // Increment the count of planets in the current house
+		});
+
+		s += "</g>\n";
+		return s;
+	}
+	
+	
+	function ascendant(t, time, lon, lat) {
+		var f = (246.697374558 + 2400.0513 * t + time) * 15 - lon;
+		f = dtr(fixangle(f));
+		var c = (23.439291 - 0.0130042 * t - 1.639e-7 * t * t);
+		c = dtr(c);
+		var b = Math.atan2(Math.cos(f), -Math.sin(f) * Math.cos(c) - Math.tan(dtr(lat)) * Math.sin(c));
+		if (b < 0) {
+			b += Math.PI
+		}
+		if (Math.cos(f) < 0) {
+			b += Math.PI
+		}
+		return fixangle(rtd(b) + getayan(t))
+	}
+
+	function calculatePositions() {
+		var year = document.getElementById('year').value;
+		var month = document.getElementById('month').value;
+		var day = document.getElementById('day').value;
+		var hour = parseInt(document.getElementById('hour').value); // Get hour from form
+		var minutes = parseInt(document.getElementById('minute').value); // Get minute from form
+		var jd = date2jul(month, day, year);
+		var zone_hours = 5.5; // India time zone offset
+		    
+		// adjust jd to get positions for specified time
+		var time_of_day = hour + minutes / 60.0;
+		time_of_day += zone_hours;
+		    
+		jd += time_of_day / 24.0;
+		//jd -= 0.5;		
+
+		var t = (jd  - J2000) / 36525;
+		var lat = 8.55;
+		var lon = 76.92;
+		var as = ascendant(t, time_of_day, lon, lat);
+
+		var pp = new Array(10);
+		pp[9] = as;
+		transitPlanets(jd, pp, false);
+		var signIndices = chPlanets(pp);
+		console.log(signIndices);
+		var planets = [ 'Sun',  'Moon', 'Mars', 'Mercury', 'Jupiter', 'Venus', 'Saturn', 'Rahu', 'Ketu', 'Ascendant'];
+		var planetsMalayalam = ['ര.', 'ച.', 'കു.', 'ബു,', 'ഗു.', 'ശു.', 'മ.', 'സ.', 'ശി', 'ല.'];
+		
+		var planetDetails = [];
+
+		for (var i = 0; i < planets.length; i++) {
+			var longitude = (pp[i] !== undefined && !isNaN(pp[i])) ? pp[i].toFixed(1) : 'N/A';
+			var degreeInSign = (pp[i] !== undefined && !isNaN(pp[i])) ? (pp[i] % 30).toFixed(1) : 'N/A';
+			var zodiacSign = signIndices[i] ? indianZodiacMalayalam[signIndices[i] - 1] : 'N/A';
+			var nakshatraPada = (pp[i] !== undefined && !isNaN(pp[i])) ? calculateNakshatraPada(pp[i]) : { nakshatra: 'N/A', pada: 'N/A' };
+
+			planetDetails.push({
+				name: planetsMalayalam[i],
+				nakshatraPada: nakshatraPada.nakshatra + ' ' + nakshatraPada.pada,
+				zodiacSign: zodiacSign,
+				degree: degreeInSign,
+				longitude: parseFloat(longitude)
+			});
+			
+            var svgContent = drawSouthChart(0, 0, 400, 400, planetDetails);
+            document.getElementById('chartContainer').innerHTML = '<svg width="400" height="400" xmlns="http://www.w3.org/2000/svg" version="1.1">' + svgContent + '</svg>';
+
+		}
+
+		// Sort planets by longitude
+		planetDetails.sort((a, b) => a.longitude - b.longitude);
+
+		var table = '<table><tr><th>Planet</th><th>Nakshatra Pada</th><th>Zodiac Sign</th></tr>';
+		planetDetails.forEach((planet) => {
+			table += '<tr><td>' + planet.name + '</td><td>' + planet.nakshatraPada + '</td><td>' + planet.zodiacSign + ' (' + planet.degree + ')</td></tr>'; 
+		});
+		table += '</table>';
+		document.getElementById('result').innerHTML = table;
+	}	
+	
+
+    document.addEventListener('DOMContentLoaded', function() {
+        setDateToday(); // Set date inputs to today's date when page loads
+        calculatePositions(); // Calculate positions for the default date
+    });
+
+</script>
+</head>
+<body>
+    <h1>Planetary Positions Calculator (Central Tamilnadu) </h1>
+    <h3>This is a quick multiyear ephemeris for astrologer's use.</h3>
+    <div class="form-control">
+        <label for="year">Year (1800-2200):</label>
+        <select id="year">
+            <script>
+                for (let i = 1800; i <= 2200; i++) {
+                    document.write('<option value="' + i + '">' + i + '</option>');
+                }
+            </script>
+        </select>
+    </div>
+    <div class="form-control">
+        <label for="month">Month:</label>
+        <select id="month">
+			<option value="1">January</option>
+			<option value="2">February</option>
+			<option value="3">March</option>
+			<option value="4">April</option>
+			<option value="5">May</option>
+			<option value="6">June</option>
+			<option value="7">July</option>
+			<option value="8">August</option>
+			<option value="9">September</option>
+			<option value="10">October</option>
+			<option value="11">November</option>
+			<option value="12">December</option>
+        </select>
+    </div>
+    <div class="form-control">
+        <label for="day">Day:</label>
+        <select id="day">
+		<script>
+        for (let i = 1; i <= 31; i++) {
+            document.write('<option value="' + i + '">' + i + '</option>');
+        }
+		</script>
+        </select>
+    </div>
+	<div class="form-control">
+	    <label for="hour">Hour (0-23):</label>
+	    <select id="hour">
+	        <script>
+	            for (let i = 0; i < 24; i++) {
+	                document.write('<option value="' + i + '">' + i + '</option>');
+	            }
+	        </script>
+	    </select>
+	</div>
+	<div class="form-control">
+	    <label for="minute">Minute (0-59):</label>
+	    <select id="minute">
+	        <script>
+	            for (let i = 0; i < 60; i++) {
+	                document.write('<option value="' + i + '">' + i + '</option>');
+	            }
+	        </script>
+	    </select>
+	</div>
+
+    <div class="form-control">
+        <button onclick="calculatePositions()">Calculate Positions</button>
+    </div>
+    <div id="chartContainer" style="width: 400px; height: 400px;">
+        <!-- SVG chart will be inserted here -->
+    </div>
+    <div id="result"></div>
+
+</body>
+</html>
