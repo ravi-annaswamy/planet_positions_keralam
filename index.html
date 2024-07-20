@@ -88,38 +88,107 @@
 		{row: 0, col: 0}   // Pisces
 	];
 
-	function drawSouthChart(x, y, w, h, planetDetails) {
-		var mx = w / 4,  // width of each house
-			my = h / 4,  // height of each house
-			bw = w / 8;  // offset within each house for the planet text
+function drawSouthChart(x, y, w, h, planetDetails, currentDate, currentTime) {
+    var mx = w / 4,  // width of each house
+        my = h / 4,  // height of each house
+        bw = w / 8;  // offset within each house for the planet text
 
-		var s = "<g>\n";
-		var planetCounts = new Array(12).fill(0);  // This will track the number of planets in each house
+    var s = "<g>\n";
+    var planetCounts = new Array(12).fill(0);  // This will track the number of planets in each house
 
-		// Draw chart houses
-		housePositions.forEach((pos, index) => {
-			var xd = x + pos.col * mx,
-				yd = y + pos.row * my;
-			s += '<rect x="' + xd + '" y="' + yd + '" width="' + mx + '" height="' + my + '" style="fill:none;stroke:black;stroke-width:2"/>\n';
-		});
+    // Draw chart houses
+    housePositions.forEach((pos, index) => {
+        var xd = x + pos.col * mx,
+            yd = y + pos.row * my;
+        s += '<rect x="' + xd + '" y="' + yd + '" width="' + mx + '" height="' + my + '" style="fill:none;stroke:black;stroke-width:2"/>\n';
+    });
 
-		// Place planets in houses based on their longitude
-		planetDetails.forEach((planet) => {
-			var houseIndex = Math.floor((planet.longitude % 360) / 30); // Calculate house index from 0 to 11
-			var position = housePositions[houseIndex];
-			var count = planetCounts[houseIndex];
-			var cellX = x + position.col * mx - 10;
-			var cellY = y + position.row * my + (count * 15);  // Adjust Y based on count of planets in the same house
-			var planetName = planet.name
+    // Place planets in houses based on their longitude
+    planetDetails.forEach((planet) => {
+        var houseIndex = Math.floor((planet.longitude % 360) / 30); // Calculate house index from 0 to 11
+        var position = housePositions[houseIndex];
+        var count = planetCounts[houseIndex];
+        var cellX = x + position.col * mx - 10;
+        var cellY = y + position.row * my + (count * 15);  // Adjust Y based on count of planets in the same house
+        var planetName = planet.name
 
-			s += '<text x="' + (cellX + bw / 2) + '" y="' + (cellY + my / 2) + '" fill="black" font-size="14" font-family="monospace">' + planetName + '</text>\n';
+        s += '<text x="' + (cellX + bw / 2) + '" y="' + (cellY + my / 2) + '" fill="black" font-size="14" font-family="monospace">' + planetName + '</text>\n';
 
-			planetCounts[houseIndex]++;  // Increment the count of planets in the current house
-		});
+        planetCounts[houseIndex]++;  // Increment the count of planets in the current house
+    });
 
-		s += "</g>\n";
-		return s;
-	}
+    // Add text in the middle of the chart
+    var centerX = x + w / 2;
+    var centerY = y + h / 2;
+    s += '<text x="' + centerX + '" y="' + (centerY - 20) + '" fill="black" font-size="16" font-family="monospace" text-anchor="middle">SREE RAMAJAYAM</text>\n';
+    s += '<text x="' + centerX + '" y="' + centerY + '" fill="black" font-size="12" font-family="monospace" text-anchor="middle">' + currentDate + '</text>\n';
+    s += '<text x="' + centerX + '" y="' + (centerY + 20) + '" fill="black" font-size="12" font-family="monospace" text-anchor="middle">' + currentTime + '</text>\n';
+
+    s += "</g>\n";
+    return s;
+}
+
+function calculatePositions() {
+    var year = document.getElementById('year').value;
+    var month = document.getElementById('month').value;
+    var day = document.getElementById('day').value;
+    var hour = parseInt(document.getElementById('hour').value); // Get hour from form
+    var minutes = parseInt(document.getElementById('minute').value); // Get minute from form
+    var jd = date2jul(month, day, year);
+    var zone_hours = 5.5; // India time zone offset
+        
+    // adjust jd to get positions for specified time
+    var time_of_day = hour + minutes / 60.0;
+    time_of_day += zone_hours;
+        
+    jd += time_of_day / 24.0;
+    //jd -= 0.5;        
+
+    var t = (jd  - J2000) / 36525;
+    var lat = 8.55;
+    var lon = 76.92;
+    var as = ascendant(t, time_of_day, lon, lat);
+
+    var pp = new Array(10);
+    pp[9] = as;
+    transitPlanets(jd, pp, false);
+    var signIndices = chPlanets(pp);
+    console.log(signIndices);
+    var planets = [ 'Sun',  'Moon', 'Mars', 'Mercury', 'Jupiter', 'Venus', 'Saturn', 'Rahu', 'Ketu', 'Ascendant'];
+    var planetsMalayalam = ['ര.', 'ച.', 'കു.', 'ബു,', 'ഗു.', 'ശു.', 'മ.', 'സ.', 'ശി', 'ല.'];
+    
+    var planetDetails = [];
+
+    for (var i = 0; i < planets.length; i++) {
+        var longitude = (pp[i] !== undefined && !isNaN(pp[i])) ? pp[i].toFixed(1) : 'N/A';
+        var degreeInSign = (pp[i] !== undefined && !isNaN(pp[i])) ? (pp[i] % 30).toFixed(1) : 'N/A';
+        var zodiacSign = signIndices[i] ? indianZodiacMalayalam[signIndices[i] - 1] : 'N/A';
+        var nakshatraPada = (pp[i] !== undefined && !isNaN(pp[i])) ? calculateNakshatraPada(pp[i]) : { nakshatra: 'N/A', pada: 'N/A' };
+
+        planetDetails.push({
+            name: planetsMalayalam[i],
+            nakshatraPada: nakshatraPada.nakshatra + ' ' + nakshatraPada.pada,
+            zodiacSign: zodiacSign,
+            degree: degreeInSign,
+            longitude: parseFloat(longitude)
+        });
+
+        var currentDate = day + '-' + month + '-' + year;
+        var currentTime = hour + ':' + minutes;
+        var svgContent = drawSouthChart(0, 0, 400, 400, planetDetails, currentDate, currentTime);
+        document.getElementById('chartContainer').innerHTML = '<svg width="400" height="400" xmlns="http://www.w3.org/2000/svg" version="1.1">' + svgContent + '</svg>';
+    }
+
+    // Sort planets by longitude
+    planetDetails.sort((a, b) => a.longitude - b.longitude);
+
+    var table = '<table><tr><th>Planet</th><th>Nakshatra Pada</th><th>Zodiac Sign</th></tr>';
+    planetDetails.forEach((planet) => {
+        table += '<tr><td>' + planet.name + '</td><td>' + planet.nakshatraPada + '</td><td>' + planet.zodiacSign + ' (' + planet.degree + ')</td></tr>'; 
+    });
+    table += '</table>';
+    document.getElementById('result').innerHTML = table;
+}
 	
 	
 	function ascendant(t, time, lon, lat) {
@@ -137,66 +206,7 @@
 		return fixangle(rtd(b) + getayan(t))
 	}
 
-	function calculatePositions() {
-		var year = document.getElementById('year').value;
-		var month = document.getElementById('month').value;
-		var day = document.getElementById('day').value;
-		var hour = parseInt(document.getElementById('hour').value); // Get hour from form
-		var minutes = parseInt(document.getElementById('minute').value); // Get minute from form
-		var jd = date2jul(month, day, year);
-		var zone_hours = 5.5; // India time zone offset
-		    
-		// adjust jd to get positions for specified time
-		var time_of_day = hour + minutes / 60.0;
-		time_of_day += zone_hours;
-		    
-		jd += time_of_day / 24.0;
-		//jd -= 0.5;		
 
-		var t = (jd  - J2000) / 36525;
-		var lat = 8.55;
-		var lon = 76.92;
-		var as = ascendant(t, time_of_day, lon, lat);
-
-		var pp = new Array(10);
-		pp[9] = as;
-		transitPlanets(jd, pp, false);
-		var signIndices = chPlanets(pp);
-		console.log(signIndices);
-		var planets = [ 'Sun',  'Moon', 'Mars', 'Mercury', 'Jupiter', 'Venus', 'Saturn', 'Rahu', 'Ketu', 'Ascendant'];
-		var planetsMalayalam = ['ര.', 'ച.', 'കു.', 'ബു,', 'ഗു.', 'ശു.', 'മ.', 'സ.', 'ശി', 'ല.'];
-		
-		var planetDetails = [];
-
-		for (var i = 0; i < planets.length; i++) {
-			var longitude = (pp[i] !== undefined && !isNaN(pp[i])) ? pp[i].toFixed(1) : 'N/A';
-			var degreeInSign = (pp[i] !== undefined && !isNaN(pp[i])) ? (pp[i] % 30).toFixed(1) : 'N/A';
-			var zodiacSign = signIndices[i] ? indianZodiacMalayalam[signIndices[i] - 1] : 'N/A';
-			var nakshatraPada = (pp[i] !== undefined && !isNaN(pp[i])) ? calculateNakshatraPada(pp[i]) : { nakshatra: 'N/A', pada: 'N/A' };
-
-			planetDetails.push({
-				name: planetsMalayalam[i],
-				nakshatraPada: nakshatraPada.nakshatra + ' ' + nakshatraPada.pada,
-				zodiacSign: zodiacSign,
-				degree: degreeInSign,
-				longitude: parseFloat(longitude)
-			});
-			
-            var svgContent = drawSouthChart(0, 0, 400, 400, planetDetails);
-            document.getElementById('chartContainer').innerHTML = '<svg width="400" height="400" xmlns="http://www.w3.org/2000/svg" version="1.1">' + svgContent + '</svg>';
-
-		}
-
-		// Sort planets by longitude
-		planetDetails.sort((a, b) => a.longitude - b.longitude);
-
-		var table = '<table><tr><th>Planet</th><th>Nakshatra Pada</th><th>Zodiac Sign</th></tr>';
-		planetDetails.forEach((planet) => {
-			table += '<tr><td>' + planet.name + '</td><td>' + planet.nakshatraPada + '</td><td>' + planet.zodiacSign + ' (' + planet.degree + ')</td></tr>'; 
-		});
-		table += '</table>';
-		document.getElementById('result').innerHTML = table;
-	}	
 	
 
     document.addEventListener('DOMContentLoaded', function() {
